@@ -83,7 +83,7 @@ def FTP_write(ftpurl,ftpuser,ftppw,file_name,file):
 try:
     config = Config()
     fenster = Roemdules.gui.erstelle_Fenster(
-        {"type":"label", "text":"Spieler (Teil)Name:", "align":Roemdules.gui.ALIGN_CENTER}
+        [{"type":"label", "text":"Spieler (Teil)Name:", "align":Roemdules.gui.ALIGN_CENTER}
         ,{"type":"entry", "width":20, "align":Roemdules.gui.ALIGN_LEFT, "name":"Name"}
         ,{"type":"label", "text":"AP Tracker ID", "align":Roemdules.gui.ALIGN_CENTER}
         ,{"type":"entry", "width":20, "align":Roemdules.gui.ALIGN_LEFT, "name":"Tracker"}
@@ -93,7 +93,7 @@ try:
         ,{"type":"entry", "width":20, "align":Roemdules.gui.ALIGN_LEFT, "name":"User"}
         ,{"type":"label", "text":"FTP/DB Passwort:", "align":Roemdules.gui.ALIGN_CENTER}
         ,{"type":"entry", "width":20, "show":"*", "align":Roemdules.gui.ALIGN_LEFT, "name":"Passwort"}
-        ,{"type":"button", "text":"Start", "command":"get_config_from_window(fenster, config)", "width":5, "height":1, "align":Roemdules.gui.ALIGN_CENTER}
+        ,{"type":"button", "text":"Start", "command":"get_config_from_window(fenster, config)", "width":5, "height":1, "align":Roemdules.gui.ALIGN_CENTER}]
         ,fenster_name = "Start"#, protocols = (("WM_DELETE_WINDOW", "start_fenster_schliessen(fenster,game_state)"),)
         ,context = {'config': config, 'get_config_from_window': get_config_from_window}
         )
