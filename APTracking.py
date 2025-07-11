@@ -25,6 +25,7 @@ def get_config_from_window(fenster:tk.Tk, config: Config):
                 config.user = child.get()
             elif child.name == "Passwort":
                 config.passwort = child.get()
+    fenster.destroy()
 def get_config_from_file(file_name: str, config: Config):
     with open(file_name, "r") as config_datei:
         for config_zeile in config_datei.readlines():
@@ -67,7 +68,7 @@ def einzeltracker_drurchgehen(link:str):
 def FTP_read(ftpurl,ftpuser,ftppw,file_name,file):
     with FTP_TLS(ftpurl,ftpuser,ftppw) as ftp_connection:
         try:
-            ftp_connection.retrbinary(f"RETR {file_name}", file.write)
+            ftp_connection.retrlines(f"RETR {file_name}", lambda line: file.write(f"{line}\n"))
             return True
         except Exception as e:
             return False
@@ -119,7 +120,7 @@ try:
             game = str(tds[i].contents[0])
             # print(f"{name}, Spiel {game}: {link}")
             neu = einzeltracker_drurchgehen(link)
-            with open(f"{config.tracker}_{name}.txt", "wb") as file_alt:
+            with open(f"{config.tracker}_{name}.txt", "w") as file_alt:
                 FTP_read(config.url,config.user,config.passwort,file_name,file_alt)
             alt = {}
             with open(file_name, 'r') as file_alt:
@@ -133,15 +134,19 @@ try:
                     file_neu.write(f"{item}={anzahl}\n")
                     if (item in alt):
                         if anzahl > alt[item]:
-                            diff.append(f"{item}: {anzahl - alt[item]}")
+                            diff.append(f"{item}: {int(anzahl) - int(alt[item])}")
                     else:
                         diff.append(f"{item}: {anzahl}")
             with open(file_name, 'rb') as file_neu:
                 FTP_write(config.url,config.user,config.passwort,file_name,file_neu)
             os.remove(file_name)
+            widgets = []
             for difference in diff:
-                print(difference)
-            print("")
+                # print(difference)
+                widgets.append({"type":"label", "text":difference, "align":Roemdules.gui.ALIGN_LEFT})
+            # print("")
+            fenster = Roemdules.gui.erstelle_Fenster(widgets,fenster_name = game)
+            fenster.mainloop()
         else:   
             pass
 except Exception as e:
