@@ -37,11 +37,11 @@ def get_config_from_file(file_name: str, config: Config):
                     config.name = wert.strip()
                 elif argument.upper() == "TRACKER":
                     config.tracker = wert.strip()
-                elif argument.upper() == "FTPURL":
+                elif argument.upper() == "URL":
                     config.url = wert.strip()
-                elif argument.upper() == "FTPUSER":
+                elif argument.upper() == "USER":
                     config.user = wert.strip()
-                elif argument.upper() == "FTPPW":
+                elif argument.upper() == "PW":
                     config.passwort = wert.strip() 
                 else:
                     raise NameError(f"Ungültiger Parameter in der Config: {argument}", name=argument)
@@ -65,20 +65,30 @@ def einzeltracker_drurchgehen(link:str):
         else:
             pass
     return neu
-def FTP_read(ftpurl,ftpuser,ftppw,file_name,file):
+def FTP_read(ftpurl,ftpuser,ftppw,file_name):
+    alt = {}
+    def writealt(line):
+        item, anzahl = line.split("=")
+        alt[item] = anzahl
     with FTP_TLS(ftpurl,ftpuser,ftppw) as ftp_connection:
         try:
-            ftp_connection.retrlines(f"RETR {file_name}", lambda line: file.write(f"{line}\n"))
-            return True
+            # ftp_connection.retrlines(f"RETR {file_name}", lambda line: file.write(f"{line}\n"))
+            ftp_connection.retrlines(f"RETR {file_name}", writealt)
+            return alt
         except Exception as e:
-            return False
-def FTP_write(ftpurl,ftpuser,ftppw,file_name,file):
-    with FTP_TLS(ftpurl,ftpuser,ftppw) as ftp_connection:
-        try:
-            ftp_connection.storlines(f"STOR {file_name}", file)
-            return True
-        except Exception as e:
-            return False
+            return None
+def FTP_write(ftpurl,ftpuser,ftppw,file_name,data:dict):
+    with open(file_name, 'w') as file:
+        for item, anzahl in data.items():
+            file.write(f"{item}={anzahl}\n")
+    success = True
+    with open(file_name, 'rb') as file:
+        with FTP_TLS(ftpurl,ftpuser,ftppw) as ftp_connection:
+            try:
+                ftp_connection.storlines(f"STOR {file_name}", file)
+            except Exception as e:
+                success = False
+    if success == True: os.remove(file_name)
 ###############################################################################################
 
 try:
@@ -99,9 +109,6 @@ try:
         ,context = {'config': config, 'get_config_from_window': get_config_from_window}
         )
     fenster.mainloop()
-    # print(fenster.children)
-    # for slave in fenster.grid_slaves():
-    #     print(slave)
     if (config.name == config.tracker == config.url == config.user == config.passwort == ""):
         get_config_from_file("APTracking.config", config)
     link = f"https://archipelago.gg/tracker/{config.tracker}"
@@ -118,35 +125,21 @@ try:
             file_name = f"{config.tracker}_{name}.txt"
         elif i % 7 == 2 and name.count(config.name) > 0:
             game = str(tds[i].contents[0])
-            # print(f"{name}, Spiel {game}: {link}")
             neu = einzeltracker_drurchgehen(link)
-            with open(f"{config.tracker}_{name}.txt", "w") as file_alt:
-                FTP_read(config.url,config.user,config.passwort,file_name,file_alt)
-            alt = {}
-            with open(file_name, 'r') as file_alt:
-                alt_lines = file_alt.readlines()
-                for line in alt_lines:
-                    item, anzahl = line.split("=")
-                    alt[item] = anzahl
-            diff = [f"game: {game}"]
-            with open(file_name, 'w') as file_neu:
-                for item, anzahl in neu.items():
-                    file_neu.write(f"{item}={anzahl}\n")
-                    if (item in alt):
-                        if anzahl > alt[item]:
-                            diff.append(f"{item}: {int(anzahl) - int(alt[item])}")
-                    else:
-                        diff.append(f"{item}: {anzahl}")
-            with open(file_name, 'rb') as file_neu:
-                FTP_write(config.url,config.user,config.passwort,file_name,file_neu)
-            os.remove(file_name)
+            alt = FTP_read(config.url,config.user,config.passwort,file_name)
+            diff = [f"game: {game}", " "]
+            for item, anzahl in neu.items():
+                if (item in alt):
+                    if anzahl > alt[item]:
+                        diff.append(f"{item}: {int(anzahl) - int(alt[item])}")
+                else:
+                    diff.append(f"{item}: {anzahl}")
             widgets = []
             for difference in diff:
-                # print(difference)
                 widgets.append({"type":"label", "text":difference, "align":Roemdules.gui.ALIGN_LEFT})
-            # print("")
             fenster = Roemdules.gui.erstelle_Fenster(widgets,fenster_name = game)
             fenster.mainloop()
+            FTP_write(config.url,config.user,config.passwort,file_name,neu)
         else:   
             pass
 except Exception as e:
