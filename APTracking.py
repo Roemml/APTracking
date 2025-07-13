@@ -119,13 +119,14 @@ def DB_write_clean(mycursor,tracker:str,name:str,neu:dict):
         values.append((tracker, name, item, int(anzahl)))
     mycursor.execute('DELETE FROM APTracking WHERE ID = %s AND Game = %s', (tracker, name))
     mycursor.executemany('INSERT INTO APTracking (ID, Game, Item, Anzahl) VALUES (%s, %s, %s, %s)', values)
-
+def DB_clean_id(mycursor,tracker:str):
+    mycursor.execute('DELETE FROM APTracking WHERE ID = %s', [tracker])
+def DB_clean_all(mycursor):
+    mycursor.execute('DELETE FROM APTracking WHERE 1=1')
 ###############################################################################################
 
 try:
     config = Config()
-    # modus = tk.StringVar()
-    # modus = "DB"
     fenster, varlist = Roemdules.gui.erstelle_Fenster(
         [{"type":"label", "text":"Spieler (Teil)Name:", "align":Roemdules.gui.ALIGN_CENTER}
         ,{"type":"entry", "width":20, "name":"Name", "align":Roemdules.gui.ALIGN_LEFT}
@@ -148,46 +149,59 @@ try:
         ,fenster_name = "Start", protocols = (("WM_DELETE_WINDOW", "beenden()"),)
         ,context = {'beenden': beenden, 'config': config, 'get_config_from_window': get_config_from_window, 'modus': 'DB'}
         )
-    #varlist["modus"].set("DB")
     fenster.mainloop()
     modus_value:tk.StringVar = varlist["modus"].get()
-    print(modus_value)
     if (config.name == config.tracker == config.url == config.user == config.passwort == ""):
         get_config_from_file("APTracking.config", config)
-    mydb = mysql.connector.connect(host=config.url,user=config.user,password=config.passwort,database=config.dbname)
-    mycursor = mydb.cursor()
-    link = f"https://archipelago.gg/tracker/{config.tracker}"
-    seite = urllib.request.urlopen(link)
-    soup = BeautifulSoup(seite, "html.parser")
-    aptracker = soup.find("table", id="checks-table")
-    tds = aptracker.find_all("td")
-    for i in range(len(tds)-7):
-        if i % 7 == 0:
-            link = f'https://archipelago.gg{tds[i].find("a")["href"]}'
-        elif i % 7 == 1:
-            name = str(tds[i].contents[0])
-            file_name = f"{config.tracker}_{name}.txt"
-        elif i % 7 == 2 and name.count(config.name) > 0:
-            game = str(tds[i].contents[0])
-            neu = einzeltracker_drurchgehen(link)
-            # alt = FTP_read(config.url,config.user,config.passwort,file_name)
-            alt = DB_read(mycursor,config.tracker,name)
-            diff = [f"game: {game}", " "]
-            for item, anzahl in neu.items():
-                if (item in alt):
-                    if int(anzahl) > int(alt[item]):
-                        diff.append(f"{item}: {int(anzahl) - int(alt[item])}")
+    if not modus_value == "FTP":
+        mydb = mysql.connector.connect(host=config.url,user=config.user,password=config.passwort,database=config.dbname)
+        mycursor = mydb.cursor()
+    if modus_value == "DB_DELALL":
+        DB_clean_all(mycursor)
+        mydb.commit()
+    elif modus_value == "DB_DEL":
+        DB_clean_id(mycursor,config.tracker)
+        mydb.commit()
+    else:
+        link    = f"https://archipelago.gg/tracker/{config.tracker}"
+        seite = urllib.request.urlopen(link)
+        soup = BeautifulSoup(seite, "html.parser")
+        aptracker = soup.find("table", id="checks-table")
+        tds = aptracker.find_all("td")
+        for i in range(len(tds)-7):
+            if i % 7 == 0:
+                link = f'https://archipelago.gg{tds[i].find("a")["href"]}'
+            elif i % 7 == 1:
+                name = str(tds[i].contents[0])
+                file_name = f"{config.tracker}_{name}.txt"
+            elif i % 7 == 2 and name.count(config.name) > 0:
+                game = str(tds[i].contents[0])
+                neu = einzeltracker_drurchgehen(link)
+                if modus_value == "FTP":
+                    alt = FTP_read(config.url,config.user,config.passwort,file_name)
                 else:
-                    diff.append(f"{item}: {anzahl}")
-            widgets = []
-            for difference in diff:
-                widgets.append({"type":"label", "text":difference, "align":Roemdules.gui.ALIGN_LEFT})
-            fenster = Roemdules.gui.erstelle_Fenster(widgets,fenster_name = game)
-            fenster.mainloop()
-            # FTP_write(config.url,config.user,config.passwort,file_name,neu)
-            DB_write_update(mycursor,config.tracker,name,alt,neu)
-            mydb.commit()
-        else:   
-            pass
+                    alt = DB_read(mycursor,config.tracker,name)
+                diff = [f"game: {game}", " "]
+                for item, anzahl in neu.items():
+                    if (item in alt):
+                        if int(anzahl) > int(alt[item]):
+                            diff.append(f"{item}: {int(anzahl) - int(alt[item])}")
+                    else:
+                        diff.append(f"{item}: {anzahl}")
+                widgets = []
+                for difference in diff:
+                    widgets.append({"type":"label", "text":difference, "align":Roemdules.gui.ALIGN_LEFT})
+                fenster = Roemdules.gui.erstelle_Fenster(widgets,fenster_name = game)
+                fenster.mainloop()
+                if modus_value == "FTP":
+                    FTP_write(config.url,config.user,config.passwort,file_name,neu)
+                elif modus_value == "DB":
+                    DB_write_update(mycursor,config.tracker,name,alt,neu)
+                    mydb.commit()
+                elif modus_value =="DB-CLEAN":
+                    DB_write_clean(mycursor,config.tracker,name,neu)
+                    mydb.commit()
+            else:   
+                pass
 except Exception as e:
     print(f"{e.__class__}: {e}")
