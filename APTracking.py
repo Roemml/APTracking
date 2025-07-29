@@ -5,10 +5,14 @@ from ftplib import FTP_TLS
 import mysql.connector
 import urllib.request
 from bs4 import BeautifulSoup
+from dotenv import load_dotenv
+from cryptography.fernet import Fernet
 import Roemdules
 import Roemdules.gui
 class Config():
+    CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
     def __init__(self):
+        self.modus:tk.StringVar = ""
         self.name = ""
         self.tracker = ""
         self.url = ""
@@ -35,28 +39,22 @@ def get_config_from_window(fenster:tk.Tk, config: Config):
                 config.dbname = child.get()
     fenster.destroy()
 def get_config_from_file(file_name: str, config: Config):
-    with open(file_name, "r") as config_datei:
-        for config_zeile in config_datei.readlines():
-            if config_zeile.startswith("#"):
-                continue
-            elif config_zeile.count("=") == 1:
-                argument, wert = config_zeile.split("=")
-                if argument.upper() == "NAME":
-                    config.name = wert.strip()
-                elif argument.upper() == "TRACKER":
-                    config.tracker = wert.strip()
-                elif argument.upper() == "URL":
-                    config.url = wert.strip()
-                elif argument.upper() == "USER":
-                    config.user = wert.strip()
-                elif argument.upper() == "PW":
-                    config.passwort = wert.strip()
-                elif argument.upper() == "DATABASE":
-                    config.dbname = wert.strip()
-                else:
-                    raise NameError(f"Ungültiger Parameter in der Config: {argument}", name=argument)
-            else:
-                raise ValueError(f"Ungültiges Format der Zeile in der config Datei: {config_zeile}")
+    load_dotenv(file_name)
+    key = os.getenv("FKEY").encode()
+    fernet = Fernet(key)
+    def fernet_decrypt(encrypted):
+        return fernet.decrypt(encrypted.encode()).decode()
+    if config.name == "": config.name = os.getenv("APT_name")
+    if config.tracker == "": config.tracker = os.getenv("APT_tracker")
+    if config.modus == "FTP":
+        if config.url == "":  config.url = fernet_decrypt(os.getenv("APT_FTPURL"))
+        if config.user == "": config.user = fernet_decrypt(os.getenv("APT_FTPUSER"))
+        if config.passwort == "": config.passwort = fernet_decrypt(os.getenv("APT_FTPPW"))
+    else:
+        if config.url == "":  config.url = fernet_decrypt(os.getenv("APT_DBURL"))
+        if config.user == "": config.user = fernet_decrypt(os.getenv("APT_DBUSER"))
+        if config.passwort == "": config.passwort = fernet_decrypt(os.getenv("APT_DBPW"))
+        if config.dbname == "": config.dbname = fernet_decrypt(os.getenv("APT_DB"))
 def einzeltracker_drurchgehen(link:str):
     neu = {}
     seite = urllib.request.urlopen(link)
@@ -150,16 +148,17 @@ try:
         ,context = {'beenden': beenden, 'config': config, 'get_config_from_window': get_config_from_window, 'modus': 'DB'}
         )
     fenster.mainloop()
-    modus_value:tk.StringVar = varlist["modus"].get()
-    if (config.name == config.tracker == config.url == config.user == config.passwort == ""):
-        get_config_from_file("APTracking.config", config)
-    if not modus_value == "FTP":
+    config.modus = varlist["modus"].get()
+    env_datei = os.path.join(Config.CURRENT_DIR, "env", "APTracking.env")
+    if os.path.exists(env_datei):
+        get_config_from_file(env_datei, config)
+    if not config.modus == "FTP":
         mydb = mysql.connector.connect(host=config.url,user=config.user,password=config.passwort,database=config.dbname)
         mycursor = mydb.cursor()
-    if modus_value == "DB_DELALL":
+    if config.modus == "DB_DELALL":
         DB_clean_all(mycursor)
         mydb.commit()
-    elif modus_value == "DB_DEL":
+    elif config.modus == "DB_DEL":
         DB_clean_id(mycursor,config.tracker)
         mydb.commit()
     else:
@@ -177,7 +176,7 @@ try:
             elif i % 7 == 2 and name.count(config.name) > 0:
                 game = str(tds[i].contents[0])
                 neu = einzeltracker_drurchgehen(link)
-                if modus_value == "FTP":
+                if config.modus == "FTP":
                     alt = FTP_read(config.url,config.user,config.passwort,file_name)
                 else:
                     alt = DB_read(mycursor,config.tracker,name)
@@ -193,12 +192,12 @@ try:
                     widgets.append({"type":"label", "text":difference, "align":Roemdules.gui.ALIGN_LEFT})
                 fenster = Roemdules.gui.erstelle_Fenster(widgets,fenster_name = game)
                 fenster.mainloop()
-                if modus_value == "FTP":
+                if config.modus == "FTP":
                     FTP_write(config.url,config.user,config.passwort,file_name,neu)
-                elif modus_value == "DB":
+                elif config.modus == "DB":
                     DB_write_update(mycursor,config.tracker,name,alt,neu)
                     mydb.commit()
-                elif modus_value =="DB-CLEAN":
+                elif config.modus =="DB-CLEAN":
                     DB_write_clean(mycursor,config.tracker,name,neu)
                     mydb.commit()
             else:   
