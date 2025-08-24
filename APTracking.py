@@ -10,7 +10,6 @@ from cryptography.fernet import Fernet
 import Roemdules
 import Roemdules.gui
 class Config():
-    CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
     def __init__(self):
         self.modus:tk.StringVar = ""
         self.name = ""
@@ -149,9 +148,13 @@ try:
         )
     fenster.mainloop()
     config.modus = varlist["modus"].get()
-    env_datei = os.path.join(Config.CURRENT_DIR, "env", "APTracking.env")
+    env_datei = os.path.join(os.path.dirname(os.path.abspath(__file__)), "env", "APTracking.env")
     if os.path.exists(env_datei):
         get_config_from_file(env_datei, config)
+    else:
+        env_datei = os.path.join(".", "env", "APTracking.env")
+        if os.path.exists(env_datei):
+            get_config_from_file(env_datei, config)
     if not config.modus == "FTP":
         mydb = mysql.connector.connect(host=config.url,user=config.user,password=config.passwort,database=config.dbname)
         mycursor = mydb.cursor()
