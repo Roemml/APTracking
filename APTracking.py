@@ -148,13 +148,14 @@ try:
         )
     fenster.mainloop()
     config.modus = varlist["modus"].get()
-    env_datei = os.path.join(os.path.dirname(os.path.abspath(__file__)), "env", "APTracking.env")
+    if getattr(sys, 'frozen', False):  # wenn mit PyInstaller "eingefroren"
+        # sys.executable ist dann die .exe-Datei
+        env_datei = os.path.join(os.path.dirname(sys.executable), "env", "APTracking.env")
+    else:
+        # normale Python-Ausführung: Skriptdatei
+        env_datei = os.path.join(os.path.dirname(os.path.abspath(__file__)), "env", "APTracking.env")
     if os.path.exists(env_datei):
         get_config_from_file(env_datei, config)
-    else:
-        env_datei = os.path.join(".", "env", "APTracking.env")
-        if os.path.exists(env_datei):
-            get_config_from_file(env_datei, config)
     if not config.modus == "FTP":
         mydb = mysql.connector.connect(host=config.url,user=config.user,password=config.passwort,database=config.dbname)
         mycursor = mydb.cursor()
