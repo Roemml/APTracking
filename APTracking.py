@@ -185,6 +185,7 @@ try:
         soup = BeautifulSoup(seite, "html.parser")
         aptracker = soup.find("table", id="checks-table")
         tds = aptracker.find_all("td")
+        name = ""
         for i in range(len(tds)-7):
             if i % 7 == 0:
                 link = f'https://archipelago.gg{tds[i].find("a")["href"]}'
@@ -200,7 +201,7 @@ try:
                     alt = FTP_read(config.url,config.user,config.passwort,file_name)
                 else:
                     alt = DB_read(mycursor,config.tracker,name)
-                diff = [f"game: {game}", " "]
+                diff = [f"{name}: {game}", " "]
                 for item, anzahl in neu.items():
                     if (item in alt):
                         if int(anzahl) > int(alt[item]):
