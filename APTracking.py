@@ -72,6 +72,18 @@ def einzeltracker_drurchgehen(link:str):
         else:
             pass
     return neu
+def LOCAL_read(file_name):
+    alt = {}
+    if os.path.exists(os.path.join(current_dir, file_name)):
+        with open(os.path.join(current_dir, file_name), 'r') as file:
+            for line in file:
+                item, anzahl = line.split("=")
+                alt[item] = anzahl
+    return alt
+def LOCAL_write(file_name,data:dict):
+    with open(os.path.join(current_dir, file_name), 'w') as file:
+        for item, anzahl in data.items():
+            file.write(f"{item}={anzahl}\n")
 def FTP_read(ftpurl,ftpuser,ftppw,file_name):
     alt = {}
     def writealt(line):
@@ -137,6 +149,7 @@ try:
         ,{"type":"entry", "width":20, "show":"*", "name":"Passwort", "align":Roemdules.gui.ALIGN_LEFT}
         ,{"type":"label", "text":"DB DBName:", "align":Roemdules.gui.ALIGN_CENTER}
         ,{"type":"entry", "width":20, "name":"DBName", "align":Roemdules.gui.ALIGN_LEFT}
+        ,{"type":"radiobutton", "variable":"modus", "value":"LOCAL", "text": "Lokal speichern", "align":Roemdules.gui.ALIGN_LEFT}
         ,{"type":"radiobutton", "variable":"modus", "value":"FTP", "text": "Speichern per FTP", "align":Roemdules.gui.ALIGN_LEFT}
         ,{"type":"radiobutton", "variable":"modus", "value":"DB", "text": "Speichern per DB", "align":Roemdules.gui.ALIGN_LEFT}
         ,{"type":"radiobutton", "variable":"modus", "value":"DB-CLEAN", "text": "Speichern per DB mit vorher leeren", "align":Roemdules.gui.ALIGN_LEFT}
@@ -149,14 +162,15 @@ try:
     fenster.mainloop()
     config.modus = varlist["modus"].get()
     if getattr(sys, 'frozen', False):  # wenn mit PyInstaller "eingefroren"
-        # sys.executable ist dann die .exe-Datei
-        env_datei = os.path.join(os.path.dirname(sys.executable), "env", "APTracking.env")
+        # sys.executable ist dann die .exe-Datei 
+        current_dir = os.path.dirname(sys.executable)
     else:
         # normale Python-Ausführung: Skriptdatei
-        env_datei = os.path.join(os.path.dirname(os.path.abspath(__file__)), "env", "APTracking.env")
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+    env_datei = os.path.join(current_dir, "env", "APTracking.env")
     if os.path.exists(env_datei):
         get_config_from_file(env_datei, config)
-    if not config.modus == "FTP":
+    if config.modus.startswith("DB"):
         mydb = mysql.connector.connect(host=config.url,user=config.user,password=config.passwort,database=config.dbname)
         mycursor = mydb.cursor()
     if config.modus == "DB_DELALL":
@@ -180,7 +194,9 @@ try:
             elif i % 7 == 2 and name.count(config.name) > 0:
                 game = str(tds[i].contents[0])
                 neu = einzeltracker_drurchgehen(link)
-                if config.modus == "FTP":
+                if config.modus == "LOCAL":
+                    alt = LOCAL_read(file_name)
+                elif config.modus == "FTP":
                     alt = FTP_read(config.url,config.user,config.passwort,file_name)
                 else:
                     alt = DB_read(mycursor,config.tracker,name)
@@ -194,9 +210,11 @@ try:
                 widgets = []
                 for difference in diff:
                     widgets.append({"type":"label", "text":difference, "align":Roemdules.gui.ALIGN_LEFT})
-                fenster = Roemdules.gui.erstelle_Fenster(widgets,fenster_name = game)
+                fenster = Roemdules.gui.erstelle_Fenster(widgets,fenster_name = game,fenster_breite=200)
                 fenster.mainloop()
-                if config.modus == "FTP":
+                if config.modus == "LOCAL":
+                    LOCAL_write(file_name,neu)
+                elif config.modus == "FTP":
                     FTP_write(config.url,config.user,config.passwort,file_name,neu)
                 elif config.modus == "DB":
                     DB_write_update(mycursor,config.tracker,name,alt,neu)
