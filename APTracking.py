@@ -7,7 +7,7 @@ import urllib.request
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from cryptography.fernet import Fernet
-import Roemdules
+#import Roemdules
 import Roemdules.gui
 class Config():
     def __init__(self):
@@ -20,7 +20,7 @@ class Config():
         self.dbname = ""
 def beenden():
     # fenster.destroy()
-    sys.exit("Programm vorzeitig beendet") 
+    sys.exit("Exit program") 
 def get_config_from_window(fenster:tk.Tk, config: Config):
     for child in fenster.children.values():
         if("name" in child.__dict__): 
@@ -132,33 +132,52 @@ def DB_clean_id(mycursor,tracker:str):
     mycursor.execute('DELETE FROM APTracking WHERE ID = %s', [tracker])
 def DB_clean_all(mycursor):
     mycursor.execute('DELETE FROM APTracking WHERE 1=1')
+def update_gui(fenster):
+    modus = varlist["modus"].get()
+    for child in fenster.children.values():
+        if("name" in child.__dict__): 
+            if child.name == "DBNameText" or child.name == 'DBName':
+                if modus.startswith("DB"):
+                    if child.align == Roemdules.gui.ALIGN_CENTER: child.place(x = (fenster.winfo_width() - child.winfo_reqwidth()) // 2, y = child.element_top)
+                    elif child.align == Roemdules.gui.ALIGN_LEFT: child.place(x = 0, y = child.element_top)
+                else:
+                    child.place_forget()
+            elif child.name == "UrlText" or child.name == 'Url' or child.name == "UserText" or child.name == 'User' or child.name == "PasswortText" or child.name == 'Passwort' :
+                if modus.startswith("DB") or modus.startswith("FTP"):
+                    if child.align == Roemdules.gui.ALIGN_CENTER: child.place(x = (fenster.winfo_width() - child.winfo_reqwidth()) // 2, y = child.element_top)
+                    elif child.align == Roemdules.gui.ALIGN_LEFT: child.place(x = 0, y = child.element_top)
+                else:
+                    child.place_forget()
+            
 ###############################################################################################
 
 try:
     config = Config()
     fenster, varlist = Roemdules.gui.erstelle_Fenster(
-        [{"type":"label", "text":"Spieler (Teil)Name:", "align":Roemdules.gui.ALIGN_CENTER}
-        ,{"type":"entry", "width":20, "name":"Name", "align":Roemdules.gui.ALIGN_LEFT}
-        ,{"type":"label", "text":"AP Tracker ID", "name":"Tracker", "align":Roemdules.gui.ALIGN_CENTER}
-        ,{"type":"entry", "width":20, "align":Roemdules.gui.ALIGN_LEFT}
-        ,{"type":"label", "text":"FTP/DB Url:", "align":Roemdules.gui.ALIGN_CENTER}
-        ,{"type":"entry", "width":20, "name":"Url", "align":Roemdules.gui.ALIGN_LEFT}
-        ,{"type":"label", "text":"FTP/DB UserName:", "align":Roemdules.gui.ALIGN_CENTER}
-        ,{"type":"entry", "width":20, "name":"User", "align":Roemdules.gui.ALIGN_LEFT}
-        ,{"type":"label", "text":"FTP/DB Passwort:", "align":Roemdules.gui.ALIGN_CENTER}
-        ,{"type":"entry", "width":20, "show":"*", "name":"Passwort", "align":Roemdules.gui.ALIGN_LEFT}
-        ,{"type":"label", "text":"DB DBName:", "align":Roemdules.gui.ALIGN_CENTER}
-        ,{"type":"entry", "width":20, "name":"DBName", "align":Roemdules.gui.ALIGN_LEFT}
-        ,{"type":"radiobutton", "variable":"modus", "value":"LOCAL", "text": "Lokal speichern", "align":Roemdules.gui.ALIGN_LEFT}
-        ,{"type":"radiobutton", "variable":"modus", "value":"FTP", "text": "Speichern per FTP", "align":Roemdules.gui.ALIGN_LEFT}
-        ,{"type":"radiobutton", "variable":"modus", "value":"DB", "text": "Speichern per DB", "align":Roemdules.gui.ALIGN_LEFT}
-        ,{"type":"radiobutton", "variable":"modus", "value":"DB-CLEAN", "text": "Speichern per DB mit vorher leeren", "align":Roemdules.gui.ALIGN_LEFT}
-        ,{"type":"radiobutton", "variable":"modus", "value":"DB_DEL", "text": "Löschen aller DB Daten mit AP ID", "align":Roemdules.gui.ALIGN_LEFT}
-        ,{"type":"radiobutton", "variable":"modus", "value":"DB_DELALL", "text": "Löschen aller DB Daten", "align":Roemdules.gui.ALIGN_LEFT}
-        ,{"type":"button", "text":"Start", "command":"get_config_from_window(fenster, config)", "width":5, "height":1, "align":Roemdules.gui.ALIGN_CENTER}]
+        [{"type":"button", "text":"Start", "command":"get_config_from_window(fenster, config)", "width":5, "height":1, "align":Roemdules.gui.ALIGN_CENTER}
+        ,{"type":"radiobutton", "command":"update_gui(fenster)", "variable":"modus", "value":"LOCAL", "text": "Save local", "align":Roemdules.gui.ALIGN_LEFT}
+        ,{"type":"radiobutton", "command":"update_gui(fenster)", "variable":"modus", "value":"FTP", "text": "Save via FTP", "align":Roemdules.gui.ALIGN_LEFT}
+        ,{"type":"radiobutton", "command":"update_gui(fenster)", "variable":"modus", "value":"DB", "text": "Save via DB", "align":Roemdules.gui.ALIGN_LEFT}
+        ,{"type":"radiobutton", "command":"update_gui(fenster)", "variable":"modus", "value":"DB-CLEAN", "text": "Save via DB and empty before", "align":Roemdules.gui.ALIGN_LEFT}
+        ,{"type":"radiobutton", "command":"update_gui(fenster)", "variable":"modus", "value":"DB_DEL", "text": "Delete all DB Data with AP ID", "align":Roemdules.gui.ALIGN_LEFT}
+        ,{"type":"radiobutton", "command":"update_gui(fenster)", "variable":"modus", "value":"DB_DELALL", "text": "Delete all DB Data", "align":Roemdules.gui.ALIGN_LEFT}
+        ,{"type":"label", "text":"Player Name (Part):", "align":Roemdules.gui.ALIGN_CENTER}
+        ,{"type":"entry", "width":30, "name":"Name", "align":Roemdules.gui.ALIGN_LEFT}
+        ,{"type":"label", "text":"AP Tracker ID", "align":Roemdules.gui.ALIGN_CENTER}
+        ,{"type":"entry", "width":30, "name":"Tracker", "align":Roemdules.gui.ALIGN_LEFT}
+        ,{"type":"label", "text":"FTP/DB Url:", "name":"UrlText", "align":Roemdules.gui.ALIGN_CENTER}
+        ,{"type":"entry", "width":30, "name":"Url", "align":Roemdules.gui.ALIGN_LEFT}
+        ,{"type":"label", "text":"FTP/DB UserName:", "name":"UserText", "align":Roemdules.gui.ALIGN_CENTER}
+        ,{"type":"entry", "width":30, "name":"User", "align":Roemdules.gui.ALIGN_LEFT}
+        ,{"type":"label", "text":"FTP/DB Password:", "name":"PasswortText", "align":Roemdules.gui.ALIGN_CENTER}
+        ,{"type":"entry", "width":30, "show":"*", "name":"Passwort", "align":Roemdules.gui.ALIGN_LEFT}
+        ,{"type":"label", "text":"DB DBName:", "name":"DBNameText", "align":Roemdules.gui.ALIGN_CENTER}
+        ,{"type":"entry", "width":30, "name":"DBName", "align":Roemdules.gui.ALIGN_LEFT}]
         ,fenster_name = "Start", protocols = (("WM_DELETE_WINDOW", "beenden()"),)
-        ,context = {'beenden': beenden, 'config': config, 'get_config_from_window': get_config_from_window, 'modus': 'DB'}
+        ,context = {'beenden': beenden, 'config': config, 'get_config_from_window': get_config_from_window, 'update_gui': update_gui, 'modus': 'LOCAL'}
         )
+    # init_gui(fenster)
+    update_gui(fenster)
     fenster.mainloop()
     config.modus = varlist["modus"].get()
     if getattr(sys, 'frozen', False):  # wenn mit PyInstaller "eingefroren"
