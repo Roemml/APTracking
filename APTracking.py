@@ -20,7 +20,29 @@ class Config():
         self.dbname = ""
 def beenden():
     # fenster.destroy()
-    sys.exit("Exit program") 
+    sys.exit("Exit program")
+def get_config_from_file(file_name: str, config: Config):
+    config.modus = "LOCAL"
+    config.name = ""
+    config.tracker = ""
+    if os.path.exists(file_name):
+        with open(file_name, 'r') as file:
+            for line in file:
+                item, value = line.split("=")
+                if item == "modus": config.modus = value.strip()
+                elif item == "name": config.name = value.strip()
+                elif item == "tracker": config.tracker = value.strip()
+                # elif item == "url": config.url = value.strip()
+                # elif item == "user": config.user = value.strip()
+                # elif item == "passwort": config.passwort = value.strip()
+                # elif item == "dbname": config.dbname = value.strip()
+def save_config_to_file(file_name: str, config: Config):
+    with open(file_name, 'w') as file:
+        lines = []
+        if config.name != "": lines.append(f"name={config.name}\n")
+        if config.tracker != "": lines.append(f"tracker={config.tracker}\n")
+        lines.append(f"modus={config.modus}")
+        file.writelines(lines)
 def get_config_from_window(fenster:tk.Tk, config: Config):
     for child in fenster.children.values():
         if("name" in child.__dict__): 
@@ -37,23 +59,24 @@ def get_config_from_window(fenster:tk.Tk, config: Config):
             elif child.name == "DBName":
                 config.dbname = child.get()
     fenster.destroy()
-def get_config_from_file(file_name: str, config: Config):
-    load_dotenv(file_name)
-    key = os.getenv("FKEY").encode()
-    fernet = Fernet(key)
-    def fernet_decrypt(encrypted):
-        return fernet.decrypt(encrypted.encode()).decode()
-    if config.name == "": config.name = os.getenv("APT_name")
-    if config.tracker == "": config.tracker = os.getenv("APT_tracker")
-    if config.modus == "FTP":
-        if config.url == "":  config.url = fernet_decrypt(os.getenv("APT_FTPURL"))
-        if config.user == "": config.user = fernet_decrypt(os.getenv("APT_FTPUSER"))
-        if config.passwort == "": config.passwort = fernet_decrypt(os.getenv("APT_FTPPW"))
-    else:
-        if config.url == "":  config.url = fernet_decrypt(os.getenv("APT_DBURL"))
-        if config.user == "": config.user = fernet_decrypt(os.getenv("APT_DBUSER"))
-        if config.passwort == "": config.passwort = fernet_decrypt(os.getenv("APT_DBPW"))
-        if config.dbname == "": config.dbname = fernet_decrypt(os.getenv("APT_DB"))
+def get_config_from_env(file_name: str, config: Config):
+    if os.path.exists(file_name):    
+        load_dotenv(file_name)
+        key = os.getenv("FKEY").encode()
+        fernet = Fernet(key)
+        def fernet_decrypt(encrypted):
+            return fernet.decrypt(encrypted.encode()).decode()
+        if config.name == "": config.name = os.getenv("APT_name")
+        if config.tracker == "": config.tracker = os.getenv("APT_tracker")
+        if config.modus == "FTP":
+            if config.url == "":  config.url = fernet_decrypt(os.getenv("APT_FTPURL"))
+            if config.user == "": config.user = fernet_decrypt(os.getenv("APT_FTPUSER"))
+            if config.passwort == "": config.passwort = fernet_decrypt(os.getenv("APT_FTPPW"))
+        else:
+            if config.url == "":  config.url = fernet_decrypt(os.getenv("APT_DBURL"))
+            if config.user == "": config.user = fernet_decrypt(os.getenv("APT_DBUSER"))
+            if config.passwort == "": config.passwort = fernet_decrypt(os.getenv("APT_DBPW"))
+            if config.dbname == "": config.dbname = fernet_decrypt(os.getenv("APT_DB"))
 def einzeltracker_drurchgehen(link:str):
     neu = {}
     seite = urllib.request.urlopen(link)
@@ -138,13 +161,13 @@ def update_gui(fenster):
         if("name" in child.__dict__): 
             if child.name == "DBNameText" or child.name == 'DBName':
                 if modus.startswith("DB"):
-                    if child.align == Roemdules.gui.ALIGN_CENTER: child.place(x = (fenster.winfo_width() - child.winfo_reqwidth()) // 2, y = child.element_top)
+                    if child.align == Roemdules.gui.ALIGN_CENTER: child.place(x = (fenster.width - child.winfo_reqwidth()) // 2, y = child.element_top)
                     elif child.align == Roemdules.gui.ALIGN_LEFT: child.place(x = 0, y = child.element_top)
                 else:
                     child.place_forget()
             elif child.name == "UrlText" or child.name == 'Url' or child.name == "UserText" or child.name == 'User' or child.name == "PasswortText" or child.name == 'Passwort' :
                 if modus.startswith("DB") or modus.startswith("FTP"):
-                    if child.align == Roemdules.gui.ALIGN_CENTER: child.place(x = (fenster.winfo_width() - child.winfo_reqwidth()) // 2, y = child.element_top)
+                    if child.align == Roemdules.gui.ALIGN_CENTER: child.place(x = (fenster.width - child.winfo_reqwidth()) // 2, y = child.element_top)
                     elif child.align == Roemdules.gui.ALIGN_LEFT: child.place(x = 0, y = child.element_top)
                 else:
                     child.place_forget()
@@ -152,7 +175,16 @@ def update_gui(fenster):
 ###############################################################################################
 
 try:
+    if getattr(sys, 'frozen', False):  # wenn mit PyInstaller "eingefroren"
+        # sys.executable ist dann die .exe-Datei 
+        current_dir = os.path.dirname(sys.executable)
+    else:
+        # normale Python-Ausführung: Skriptdatei
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+    env_datei = os.path.join(current_dir, "env", "APTracking.env")
+    config_datei = os.path.join(current_dir, "APTracking.config")
     config = Config()
+    get_config_from_file(config_datei, config)
     fenster, varlist = Roemdules.gui.erstelle_Fenster(
         [{"type":"button", "text":"Start", "command":"get_config_from_window(fenster, config)", "width":5, "height":1, "align":Roemdules.gui.ALIGN_CENTER}
         ,{"type":"radiobutton", "command":"update_gui(fenster)", "variable":"modus", "value":"LOCAL", "text": "Save local", "align":Roemdules.gui.ALIGN_LEFT}
@@ -174,21 +206,23 @@ try:
         ,{"type":"label", "text":"DB DBName:", "name":"DBNameText", "align":Roemdules.gui.ALIGN_CENTER}
         ,{"type":"entry", "width":30, "name":"DBName", "align":Roemdules.gui.ALIGN_LEFT}]
         ,fenster_name = "Start", protocols = (("WM_DELETE_WINDOW", "beenden()"),)
-        ,context = {'beenden': beenden, 'config': config, 'get_config_from_window': get_config_from_window, 'update_gui': update_gui, 'modus': 'LOCAL'}
+        ,context = {'beenden': beenden, 'config': config, 'get_config_from_window': get_config_from_window, 'update_gui': update_gui, 'modus': config.modus}
         )
-    # init_gui(fenster)
+    if config.name != "":
+        for child in fenster.children.values():
+            if("name" in child.__dict__): 
+                if child.name == "Name":
+                    child.insert(0, config.name)
+    if config.tracker != "":
+        for child in fenster.children.values():
+            if("name" in child.__dict__): 
+                if child.name == "Tracker":
+                    child.insert(0, config.tracker)
     update_gui(fenster)
     fenster.mainloop()
     config.modus = varlist["modus"].get()
-    if getattr(sys, 'frozen', False):  # wenn mit PyInstaller "eingefroren"
-        # sys.executable ist dann die .exe-Datei 
-        current_dir = os.path.dirname(sys.executable)
-    else:
-        # normale Python-Ausführung: Skriptdatei
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-    env_datei = os.path.join(current_dir, "env", "APTracking.env")
-    if os.path.exists(env_datei):
-        get_config_from_file(env_datei, config)
+    save_config_to_file(config_datei, config)
+    get_config_from_env(env_datei, config)
     if config.modus.startswith("DB"):
         mydb = mysql.connector.connect(host=config.url,user=config.user,password=config.passwort,database=config.dbname)
         mycursor = mydb.cursor()
@@ -211,7 +245,7 @@ try:
             elif i % 7 == 1:
                 name = str(tds[i].contents[0])
                 file_name = f"{config.tracker}_{name}.txt"
-            elif i % 7 == 2 and name.count(config.name) > 0:
+            elif i % 7 == 2 and name.lower().count(config.name.lower()) > 0:
                 game = str(tds[i].contents[0])
                 neu = einzeltracker_drurchgehen(link)
                 if config.modus == "LOCAL":
