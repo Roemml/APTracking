@@ -7,6 +7,8 @@ import urllib.request
 from bs4 import BeautifulSoup
 from dotenv import load_dotenv
 from cryptography.fernet import Fernet
+import logging
+import argparse
 #import Roemdules
 import Roemdules.gui
 class Config():
@@ -183,8 +185,18 @@ try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
     env_datei = os.path.join(current_dir, "env", "APTracking.env")
     config_datei = os.path.join(current_dir, "APTracking.config")
+    parser = argparse.ArgumentParser(description="APTracking")
+    parser.add_argument('--debug', '-d', help="set logging level to debug",dest='debug', action='store_true')
+    args = parser.parse_args()
+    if args.debug:
+        loglevel = logging.DEBUG
+    else:
+        loglevel = logging.WARNING
+    logging.basicConfig(filename=os.path.join(current_dir, "APTracking.log"), filemode='w', format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%d.%m.%Y %H:%M:%S', level=loglevel)
     config = Config()
+    logging.debug("Vor get_config_from_file")
     get_config_from_file(config_datei, config)
+    logging.debug("nach get_config_from_file")
     fenster, varlist = Roemdules.gui.erstelle_Fenster(
         [{"type":"button", "text":"Start", "command":"get_config_from_window(fenster, config)", "width":5, "height":1, "align":Roemdules.gui.ALIGN_CENTER}
         ,{"type":"radiobutton", "command":"update_gui(fenster)", "variable":"modus", "value":"LOCAL", "text": "Save local", "align":Roemdules.gui.ALIGN_LEFT}
@@ -208,6 +220,7 @@ try:
         ,fenster_name = "Start", protocols = (("WM_DELETE_WINDOW", "beenden()"),)
         ,context = {'beenden': beenden, 'config': config, 'get_config_from_window': get_config_from_window, 'update_gui': update_gui, 'modus': config.modus}
         )
+    logging.debug("Fenster erstellt")
     if config.name != "":
         for child in fenster.children.values():
             if("name" in child.__dict__): 
@@ -219,20 +232,27 @@ try:
                 if child.name == "Tracker":
                     child.insert(0, config.tracker)
     update_gui(fenster)
+    logging.debug("initialer Update GUI")
     fenster.mainloop()
     config.modus = varlist["modus"].get()
+    logging.debug(f"Modus = {config.modus}")
     save_config_to_file(config_datei, config)
+    logging.debug(f"saved config to file")
     get_config_from_env(env_datei, config)
     if config.modus.startswith("DB"):
+        logging.debug("DB")
         mydb = mysql.connector.connect(host=config.url,user=config.user,password=config.passwort,database=config.dbname)
         mycursor = mydb.cursor()
     if config.modus == "DB_DELALL":
+        logging.debug("DB_DELALL")
         DB_clean_all(mycursor)
         mydb.commit()
     elif config.modus == "DB_DEL":
+        logging.debug("DB_DEL")
         DB_clean_id(mycursor,config.tracker)
         mydb.commit()
     else:
+        logging.debug("Start logger durchgehen")
         link    = f"https://archipelago.gg/tracker/{config.tracker}"
         seite = urllib.request.urlopen(link)
         soup = BeautifulSoup(seite, "html.parser")
@@ -245,38 +265,53 @@ try:
             elif i % 7 == 1:
                 name = str(tds[i].contents[0])
                 file_name = f"{config.tracker}_{name}.txt"
+                logging.debug(f"Name = {name}\nFilename = {file_name}")
             elif i % 7 == 2 and name.lower().count(config.name.lower()) > 0:
                 game = str(tds[i].contents[0])
                 neu = einzeltracker_drurchgehen(link)
                 if config.modus == "LOCAL":
                     alt = LOCAL_read(file_name)
                 elif config.modus == "FTP":
+                    logging.debug("start FTP_read")
                     alt = FTP_read(config.url,config.user,config.passwort,file_name)
+                    logging.debug("end FTP_read")
                 else:
+                    logging.debug("start DB_read")
                     alt = DB_read(mycursor,config.tracker,name)
+                    logging.debug("end DB_read")
                 diff = [f"{name}: {game}", " "]
                 for item, anzahl in neu.items():
-                    if (item in alt):
+                    if alt != None and (item in alt):
                         if int(anzahl) > int(alt[item]):
                             diff.append(f"{item}: {int(anzahl) - int(alt[item])}")
                     else:
                         diff.append(f"{item}: {anzahl}")
+                logging.debug("diff erzeugt")
                 widgets = []
                 for difference in diff:
                     widgets.append({"type":"label", "text":difference, "align":Roemdules.gui.ALIGN_LEFT})
+                logging.debug("diff Widgets erzeugt")
                 fenster = Roemdules.gui.erstelle_Fenster(widgets,fenster_name = game,fenster_breite=200)
                 fenster.mainloop()
                 if config.modus == "LOCAL":
+                    logging.debug("start LOCAL_write")
                     LOCAL_write(file_name,neu)
+                    logging.debug("end LOCAL_write")
                 elif config.modus == "FTP":
+                    logging.debug("start FTP_write")
                     FTP_write(config.url,config.user,config.passwort,file_name,neu)
+                    logging.debug("end FTP_write")
                 elif config.modus == "DB":
+                    logging.debug("start DB_write_update")
                     DB_write_update(mycursor,config.tracker,name,alt,neu)
                     mydb.commit()
+                    logging.debug("end DB_write_update")
                 elif config.modus =="DB-CLEAN":
+                    logging.debug("start DB_write_clean")
                     DB_write_clean(mycursor,config.tracker,name,neu)
                     mydb.commit()
+                    logging.debug("end DB_write_update")
             else:   
                 pass
 except Exception as e:
-    print(f"{e.__class__}: {e}")
+    logging.error(f"{e.__class__}: {e}")
