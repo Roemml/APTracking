@@ -279,7 +279,8 @@ try:
                     logging.debug("start DB_read")
                     alt = DB_read(mycursor,config.tracker,name)
                     logging.debug("end DB_read")
-                diff = [f"{name}: {game}", " "]
+                #diff = [f"{name}: {game}", " "]
+                diff = []
                 for item, anzahl in neu.items():
                     if alt != None and (item in alt):
                         if int(anzahl) > int(alt[item]):
@@ -287,11 +288,9 @@ try:
                     else:
                         diff.append(f"{item}: {anzahl}")
                 logging.debug("diff erzeugt")
-                widgets = []
-                for difference in diff:
-                    widgets.append({"type":"label", "text":difference, "align":Roemdules.gui.ALIGN_LEFT})
-                logging.debug("diff Widgets erzeugt")
-                fenster = Roemdules.gui.erstelle_Fenster(widgets,fenster_name = game,fenster_breite=200)
+                widgets = [{"type":"label", "text":f"{name}: {game}", "align":Roemdules.gui.ALIGN_CENTER},
+                           {"type":"listbox", "text":diff, "height":40, "align":Roemdules.gui.ALIGN_LEFT}]
+                fenster = Roemdules.gui.erstelle_Fenster(widgets,fenster_name = game,fenster_breite=40, geometry_manager="pack")
                 fenster.mainloop()
                 if config.modus == "LOCAL":
                     logging.debug("start LOCAL_write")
