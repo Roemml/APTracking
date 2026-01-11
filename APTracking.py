@@ -91,9 +91,9 @@ def einzeltracker_drurchgehen(link:str):
     tds = Tabelle.find_all("td")
     for i in range(len(tds)):
         if i % 3 == 0:
-            name = tds[i].contents[0]
+            name = str(tds[i].contents[0])
         elif i % 3 == 1:
-            neu[name] = tds[i].contents[0]
+            neu[name] = int(tds[i].contents[0])
         else:
             pass
     return neu
@@ -144,17 +144,17 @@ def DB_write_update(mycursor,tracker:str,name:str,alt:dict,neu:dict):
     for item, anzahl in neu.items():
         if (item in alt):
             if int(anzahl) > int(alt[item]):
-                mycursor.execute('UPDATE APTracking SET Anzahl = %s WHERE ID = %s AND Game = %s AND Item = %s', (int(anzahl), str(tracker), str(name), str(item)))
+                mycursor.execute('UPDATE APTracking SET Anzahl = %s WHERE ID = %s AND Game = %s AND Item = %s', (anzahl, tracker, name, item))
         else:
-            mycursor.execute('INSERT INTO APTracking (ID, Game, Item, Anzahl) VALUES(%s, %s, %s, %s)', (str(tracker), str(name), str(item), str(anzahl)))
+            mycursor.execute('INSERT INTO APTracking (ID, Game, Item, Anzahl) VALUES(%s, %s, %s, %s)', (tracker, name, item, anzahl))
 def DB_write_clean(mycursor,tracker:str,name:str,neu:dict):
     values = []
     for item, anzahl in neu.items():
-        values.append((str(tracker), str(name), str(item), int(anzahl)))
-    mycursor.execute('DELETE FROM APTracking WHERE ID = %s AND Game = %s', (str(tracker), str(name)))
+        values.append((tracker, name, item, int(anzahl)))
+    mycursor.execute('DELETE FROM APTracking WHERE ID = %s AND Game = %s', (tracker, name))
     mycursor.executemany('INSERT INTO APTracking (ID, Game, Item, Anzahl) VALUES (%s, %s, %s, %s)', values)
 def DB_clean_id(mycursor,tracker:str):
-    mycursor.execute('DELETE FROM APTracking WHERE ID = %s', [str(tracker)])
+    mycursor.execute('DELETE FROM APTracking WHERE ID = %s', [tracker])
 def DB_clean_all(mycursor):
     mycursor.execute('DELETE FROM APTracking WHERE 1=1')
 def update_gui(fenster):
